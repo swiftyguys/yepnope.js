@@ -58,7 +58,7 @@
     docHead.appendChild(object);
   }
 
-  function getJS(urls, urlKeyCallback) {
+  function getJS(urls, urlKeyCallback, preempt) {
     
     function executeJS() {
       
@@ -130,8 +130,15 @@
     // If this is a new chain, start a new array, otherwise push the new guy in.
     // This is used to preserve execution order for non FF browsers.
     if (urlKeyChain) {
-      // Push the urlKey into the chain.
-      urlKeyChain.push(urlKey);
+      // Add the ability to put something as a priority, ahead of the rest
+      // this is good for fallback type situations. Or necessary apis.
+      if (preempt >= 0) {
+        urlKeyChain.splice(preempt, 0, urlKey);
+      }
+      else {
+        // Push the urlKey into the chain.
+        urlKeyChain.push(urlKey);
+      }
     }
     else {
       // Create a new urlKeyChain to pass on to others.
@@ -159,7 +166,7 @@ var docElement            = doc.documentElement,
     noop                  = function(){},
     preObj                = "[object ",
     isArray               = Array.isArray || function(obj) {
-      return toString.call(obj) == "[object Array]";  
+      return toString.call(obj) == (preObj + "Array]");  
     },
     isObject              = function(obj) {
       // Lame object detection, but don't pass it stupid stuff?
@@ -195,7 +202,7 @@ var docElement            = doc.documentElement,
     isOrderSafe           = ("MozAppearance" in docElement.style) || (window.opera && toString.call(window.opera) == (preObj+"Opera]")) || (doc.createElement(strScript).async === true),
     
     // Yepnope Function
-    yepnope               = function(needs, currentchain, stack) {
+    yepnope               = function(needs, currentchain, stack, preempt) {
     
     // Allow the recursive stack
     stack = stack || [];
@@ -260,6 +267,11 @@ var docElement            = doc.documentElement,
           autoCallback = resource.autoCallback,
           forceJS      = resource.forceJS,
           forceCSS     = resource.forceCSS,
+          innerYepnope = (function(i) {
+            return function(a, b, c) {
+              return yepnope(a,b,c,i||0);
+            };
+          })(preempt),
           styleElem;
     
       // Determine callback, if any
@@ -286,8 +298,8 @@ var docElement            = doc.documentElement,
       
       
         // call the callback
-        callback && callback(origInc, testResult, index)
-        autoCallback && autoCallback(origInc, testResult, index);
+        callback && callback(origInc, index, innerYepnope, testResult);
+        autoCallback && autoCallback(origInc, index, innerYepnope, testResult);
       }
       // Otherwise assume that it's a script
       else {
@@ -296,11 +308,11 @@ var docElement            = doc.documentElement,
         // If we have a callback, we'll start the chain over
         if (isFunction(callback) || isFunction(autoCallback)) {
           // Call getJS with our current stack of things
-          chain = chain.getJS(stack, function(){
+          chain = chain.getJS(stack, function() {
             // Call our callbacks with this set of data
-            callback && callback(origInc, testResult, index);
-            autoCallback && autoCallback(origInc, testResult, index);
-          });
+            callback && callback(origInc, index, innerYepnope, testResult);
+            autoCallback && autoCallback(origInc, index, innerYepnope, testResult);
+          }, preempt++);
           // Reset the stack
           stack = [];
         }
@@ -352,7 +364,7 @@ var docElement            = doc.documentElement,
 
         // Fire complete callback
         if (testObject.complete) {
-          chain = chain.getJS(stack, testObject.complete);
+          chain = chain.getJS(stack, testObject.complete, preempt++);
           stack = [];
         }
   
@@ -375,7 +387,7 @@ var docElement            = doc.documentElement,
         }
         // if it's an array, call our function recursively
         else if (isArray(need)) {
-          chain = yepnope(need, chain, stack);
+          chain = yepnope(need, chain, stack, preempt);
         }
         // if it's an object, use our modernizr logic to win
         else if (isObject(need)) {
@@ -392,7 +404,7 @@ var docElement            = doc.documentElement,
     // if we still have stuff left over at the end
     // then we'll just call it with straight up
     if (stack.length) {
-      chain = chain.getJS(stack);
+      chain = chain.getJS(stack, undef, preempt++);
     }
   
     // allow more loading on this chain
