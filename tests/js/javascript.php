@@ -9,3 +9,4 @@ if (sizeof($matches) > 1) {
   sleep($matches[1]);
 }
 echo 'window.' . basename($_SERVER['REQUEST_URI'], '.js') . ' = true;';
+//echo 'if (startTime) { alert((+new Date) - startTime); }';

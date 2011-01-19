@@ -261,7 +261,7 @@ if ( ! window.console ) {
   });
 
   module("Caching");
-  asyncTest("Don't Load Twice", 1, function(){
+  asyncTest("Don't Double Load (ensure caching)", 1, function(){
     ++u;
 
     yepnope('js/sleep-3/a'+u+'.js');
@@ -270,7 +270,7 @@ if ( ! window.console ) {
     setTimeout(function(){
       ok(w['a'+u], "a exists already");
       start();
-    }, 4000);
+    }, 5900);
   });
 
   module("Inner api");
@@ -293,32 +293,6 @@ if ( ! window.console ) {
         },
         complete: function() {
           start();
-        }
-      }
-    ]);
-    stop(timeout);
-  });
-
-  asyncTest("404 Fallback", 2, function() {
-    ++u;
-    yepnope([
-      {
-        load : 'iDoesNotExist',
-        callback : function(url, res, key, yepnope){
-
-          ok( ! w['i'+u], "i returned a 404");
-
-          yepnope({
-            load : 'js/i'+u+'.js',
-            callback: function() {
-
-              ok( w['i'+u], "i has loaded" );
-
-            },
-            complete: function(){
-              start();
-            }
-          })
         }
       }
     ]);
@@ -371,5 +345,31 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
+/*
+  asyncTest("404 Fallback", 2, function() {
+    ++u;
+    yepnope([
+      {
+        load : 'iDoesNotExist',
+        callback : function(url, res, key, yepnope){
 
+          ok( ! w['i'+u], "i returned a 404");
+
+          yepnope({
+            load : 'js/i'+u+'.js',
+            callback: function() {
+
+              ok( w['i'+u], "i has loaded" );
+
+            },
+            complete: function(){
+              start();
+            }
+          })
+        }
+      }
+    ]);
+    stop(timeout);
+  });
+  */
 })( window )

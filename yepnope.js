@@ -10,9 +10,7 @@
 
 var docElement            = doc.documentElement,
     sTimeout              = window.setTimeout,
-    docHead               = doc.getElementsByTagName("head")[0] || docElement,
-    docBody               = doc.getElementsByTagName("body")[0] || doc.body,
-    docFirst              = docHead.firstChild,
+    docFirst              = docElement.firstChild,
     errorTimeout          = 5000,
     toString              = {}.toString,
     jsType                = 'j',
@@ -33,8 +31,9 @@ var docElement            = doc.documentElement,
     // Thanks to @jdalton for this opera detection
     isOpera               = window.opera && toString.call(window.opera) == strPreobj + "Opera]",
     isWebkit              = ("webkit"+strAppear in docElement.style),
-    strJsElem             = isOpera || isGecko18 ? strImg : ( isGecko ? strObject : strScript ),
+    strJsElem             = strObject, //isOpera || isGecko18 ? strImg : ( isGecko ? strObject : strScript ),
     strCssElem            = isWebkit ? strImg : strJsElem,
+    injectQueue           = [],
     isArray               = Array.isArray || function(obj) {
       return toString.call(obj) == strPreobj + "Array]";
     },
@@ -56,7 +55,6 @@ var docElement            = doc.documentElement,
       }
     },
     yepnope;
-
 
   /* Loader helper functions */
   function isFileReady( injectedElem ) {
@@ -81,129 +79,161 @@ var docElement            = doc.documentElement,
       executeStack();
     }
   }
+  
+  // Call the next step on the injectQueue
+  function shiftAndGo () {
+    // FF will double download files on occasion (race condition) without this
+    // Sucky that it needs a browser sniff, but it would be worse to sacrifice
+    // performance in all browsers just for a FF bug.
+    if ( isGecko ) {
+      sTimeout(function () {
+        // Pop it off the queue in order since technically this is async
+        // and we want to ensure that everything runs in the correct order.
+        // so this may call some other scripts function, which would
+        // in turn make that script call this one's function ... it works. promise.
+        injectQueue.shift()();
+      }, 0);
+    }
+    else {
+      injectQueue.shift()();
+    }
+  }
 
   // Takes a preloaded js obj (changes in different browsers) and injects it into the head
   // in the appropriate order
   function injectJs(oldObj) {
-
-    var script    = doc.createElement(strScript),
+    // Push a closure'd version of this function on the js queue
+    injectQueue.push(function( oldObj ){
+      return function () {
+        var script    = doc.createElement(strScript),
         done;
 
-    script.src    = oldObj.src;
+        script.src    = oldObj.src;
+
+        // Bind to load events
+        script[strOnReadyStateChange] = script[strOnLoad] = function() {
+
+          if ( ! done && isFileReady( script ) ) {
+
+            // Set done to prevent this function from being called twice.
+            done = 1;
+            execWhenReady();
+
+            // Handle memory leak in IE
+            script[strOnLoad] = script[strOnReadyStateChange] = null;
+            docElement.removeChild(script);
+          }
+        };
+
+        // 404 Fallback
+        sTimeout(function(){
+          if ( ! done ) {
+            done = 1;
+            execWhenReady();
+          }
+        }, errorTimeout);
+
+
+        // Inject script into to document
+        docElement.appendChild(script);
+      };
+    }(oldObj));
     
-    // Bind to load events
-    script[strOnReadyStateChange] = script[strOnLoad] = function() {
-
-      if ( ! done && isFileReady( script ) ) {
-
-        // Set done to prevent this function from being called twice.
-        done = 1;
-        execWhenReady();
-
-        // Handle memory leak in IE
-        script[strOnLoad] = script[strOnReadyStateChange] = null;
-        docHead.removeChild(script);
-      }
-    }
-
-    // 404 Fallback
-    sTimeout(function(){
-      if ( ! done ) {
-        done = 1;
-        execWhenReady();
-      }
-    }, errorTimeout);
-
-
-    // Inject script into to document
-    docHead.appendChild(script);
+    // Call the next thing on the queue ( hopefully this )
+    shiftAndGo();
   }
 
   // Takes a preloaded css obj (changes in different browsers) and injects it into the head
   // in the appropriate order
   function injectCss(oldObj) {
-
-    // Create stylesheet link
-    var link      = doc.createElement('link'),
+    injectQueue.push(function ( oldObj ) {
+      return function () {
+        // Create stylesheet link
+        var link      = doc.createElement('link'),
         done;
 
-    // Add attributes
-    link.href = oldObj.src;
-    link.rel  = 'stylesheet';
-    link.type = 'text/css';
+        // Add attributes
+        link.href = oldObj.src;
+        link.rel  = 'stylesheet';
+        link.type = 'text/css';
 
 
-    // Poll for changes in webkit and gecko
-    if ( isWebkit || isGecko ) {
+        // Poll for changes in webkit and gecko
+        if ( isWebkit || isGecko ) {
 
-      // A self executing function with a sTimeout poll to call itself
-      // again until the css file is added successfully
-      (function poll( link ) {
-        sTimeout(function(){
-          // Don't run again if we're already done
-          if ( ! done ) {
-            try {
-              // In supporting browsers, we can see the length of the cssRules of the file go up
-              if ( link.sheet && link.sheet.cssRules && link.sheet.cssRules.length ) {
-                // Then turn off the poll
-                done = true;
-                // And execute a function to execute callbacks when all dependencies are met
-                execWhenReady();
+          // A self executing function with a sTimeout poll to call itself
+          // again until the css file is added successfully
+          (function poll( link ) {
+            sTimeout(function(){
+              // Don't run again if we're already done
+              if ( ! done ) {
+                try {
+                  // In supporting browsers, we can see the length of the cssRules of the file go up
+                  if ( link.sheet && link.sheet.cssRules && link.sheet.cssRules.length ) {
+                    // Then turn off the poll
+                    done = true;
+                    // And execute a function to execute callbacks when all dependencies are met
+                    execWhenReady();
+                  }
+                  // otherwise, wait another interval and try again
+                  else {
+                    poll(link);
+                  }
+                } catch (ex) {
+                  // In the case that the browser does not support the cssRules array (cross domain)
+                  // just check the error message to see if it's a security error
+                  if ( (ex.code == 1000) || (ex.message.match(/security|denied/i)) ) {
+                    // if it's a security error, that means it loaded a cross domain file, so stop the timeout loop
+                    done = true;
+                    // and execute a check to see if we can run the callback(s) immediately after this function ends
+                    sTimeout(function(){
+                      execWhenReady();
+                    }, 0 );
+                  }
+                  // otherwise, continue to poll
+                  else {
+                    poll(link);
+                  }
+                }
+
               }
-              // otherwise, wait another interval and try again
-              else {
-                poll(link);
-              }
-            } catch (ex) {
-              // In the case that the browser does not support the cssRules array (cross domain)
-              // just check the error message to see if it's a security error
-              if ( (ex.code == 1000) || (ex.message.match(/security|denied/i)) ) {
-                // if it's a security error, that means it loaded a cross domain file, so stop the timeout loop
-                done = true;
-                // and execute a check to see if we can run the callback(s) immediately after this function ends
-                sTimeout(function(){
-                  execWhenReady();
-                }, 0 );
-              }
-              // otherwise, continue to poll
-              else {
-                poll(link);
-              }
-            }
+            }, 13);
+          })( link );
 
-          }
-        }, 13);
-      })( link );
-
-    }
-    // Onload handler for IE and Opera
-    else {
-
-      // In browsers that allow the onload event on link tags, just use it
-      link.onload = function() {
-        if ( ! done ) {
-          // Set our flag to complete
-          done = true;
-          // Check to see if we can call the callback
-          sTimeout(function(){
-            execWhenReady();
-          }, 0);
         }
+        // Onload handler for IE and Opera
+        else {
+
+          // In browsers that allow the onload event on link tags, just use it
+          link.onload = function() {
+            if ( ! done ) {
+              // Set our flag to complete
+              done = true;
+              // Check to see if we can call the callback
+              sTimeout(function(){
+                execWhenReady();
+              }, 0);
+            }
+          };
+
+        }
+
+        // 404 Fallback
+        sTimeout(function(){
+          if ( ! done ) {
+            done = true;
+            execWhenReady();
+          }
+        }, errorTimeout);
+
+        // Inject CSS
+        docElement.insertBefore(link, docFirst);
       };
 
-    }
+    }( oldObj ));
 
-    // 404 Fallback
-    sTimeout(function(){
-      if ( ! done ) {
-        done = true;
-        execWhenReady();
-      }
-    }, errorTimeout);
-
-    // Inject CSS
-    docHead.insertBefore(link, docFirst);
-
+    // Call the next thing on the queue
+    shiftAndGo();
   }
 
   function executeStack(a) {
@@ -245,7 +275,7 @@ var docElement            = doc.documentElement,
   }
 
 
-  function preloadFile( elem, url, type, splicePoint, docHead ) {
+  function preloadFile( elem, url, type, splicePoint ) {
     // Create appropriate element for browser and type
     var preloadElem = doc.createElement( elem ),
         done        = 0;
@@ -266,7 +296,7 @@ var docElement            = doc.documentElement,
 
         // Handle memory leak in IE
         preloadElem[strOnLoad] = preloadElem[strOnReadyStateChange] = null;
-        type && docHead.removeChild(preloadElem);
+        type && docElement.removeChild(preloadElem);
       }
     }
 
@@ -299,7 +329,7 @@ var docElement            = doc.documentElement,
     type && execStack.splice( splicePoint, 0, preloadElem);
 
     // append the element to the appropriate parent element (scripts go in the head, usually, and objects go in the body usually)
-    docHead.appendChild(preloadElem);
+    docElement.appendChild(preloadElem);
 
     // Special case for opera, since error handling is how we detect onload
     // (with images) - we can't have a real error handler. So in opera, we
@@ -327,7 +357,7 @@ var docElement            = doc.documentElement,
       // if the resource passed in here is a string, preload the file
       // use the head when we can (which is the documentElement when the head element doesn't exist)
       // and use the body element for objects. Images seem fine in the head, for some odd reason.
-      preloadFile(elem, resource, type, app.i++, (elem == strObject ? docBody : docHead) );
+      preloadFile( elem, resource, type, app.i++ );
     } else {
       // Otherwise it's a resource object and we can splice it into the app at the current location
       execStack.splice(app.i++, 0, resource);
