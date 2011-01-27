@@ -109,11 +109,11 @@
 //                  script.media = "print";
                 } else {
                   script.src = script.data = srcs[type];
-                  script.type = 'bogus';                
+                  script.type && (script.type = 'bogus');                
                 }
 
                 script[callback] = function() {
-									console.log([elem, callback, type].join('-'));
+									//console.log([elem, callback, type].join('-'));
                   if (( callback != 'onreadystatechange' ) || (callback == 'onreadystatechange' && ( script.readyState == "loaded" || script.readyState == "complete"))) {
                     doc.getElementById([elem, callback, type].join('-')).className = 'pass';
                     head.removeChild( script );

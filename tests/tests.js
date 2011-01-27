@@ -48,6 +48,8 @@ if ( ! window.console ) {
       })(3),
       u         = (+new Date);
 
+  /**/
+
   module("Input Support")
   asyncTest("Accept as many input types as possible", 8, function() {
     ++u;
@@ -126,6 +128,8 @@ if ( ! window.console ) {
     }, 6000);
   });
 
+  /**/
+
   module("Asynchronous Script Loading")
   asyncTest("Execution Order", 1, function() {
     ++u;
@@ -145,6 +149,8 @@ if ( ! window.console ) {
       }
     }]);
   });
+  
+  /**/
 
   asyncTest("Non-recursive loading of a &rarr; b &rarr; c", 3, function() {
     // Increment the unique value per test, so caching doesn't occur between tests
@@ -175,6 +181,8 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
+  
+  /**/
 
   asyncTest("Recursive loading of d &rarr; e &rarr; f &rarr; g &rarr; h", 5, function() {
     ++u;
@@ -225,6 +233,8 @@ if ( ! window.console ) {
     stop(timeout);
   });
 
+  /**/
+
   asyncTest("CSS Callback Timing", 3, function() {
     var startTime = (+new Date);
 
@@ -260,6 +270,8 @@ if ( ! window.console ) {
     stop(timeout);
   });
 
+  /**/
+
   module("Caching");
   asyncTest("Don't Load Twice", 1, function(){
     ++u;
@@ -272,6 +284,8 @@ if ( ! window.console ) {
       start();
     }, 5500);
   });
+  
+  /**/
 
   module("Inner api");
   asyncTest("Key Value Callbacks", 2, function() {
@@ -298,32 +312,25 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
+  
+  /**/
 
-  asyncTest("404 Fallback", 2, function() {
+  asyncTest("404 Fallback", 1, function() {
     ++u;
     yepnope([
       {
         load : 'iDoesNotExist',
-        callback : function(url, res, key, yepnope){
-
-          ok( ! w['i'+u], "i returned a 404");
-
-          yepnope({
-            load : 'js/i'+u+'.js',
-            callback: function() {
-
-              ok( w['i'+u], "i has loaded" );
-
-            },
-            complete: function(){
-              start();
-            }
-          })
+        oops : 'js/i'+u+'.js',
+        callback : function(url, res, key, yepnope ) {
+          ok( w['i'+u], "i has loaded" );
+          start();
         }
       }
     ]);
     stop(timeout);
   });
+  
+  /**/
 
   module("Supported Plugins")
   asyncTest("autoprotocol supported global filter plugin", 1, function() {
@@ -341,6 +348,8 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
+  
+  /**/
 
   asyncTest("IE prefix test", 2, function() {
     ++u;
@@ -371,5 +380,5 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
-
+  /**/
 })( window )

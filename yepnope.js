@@ -68,20 +68,26 @@ var docElement            = doc.documentElement,
 
   // Takes a preloaded js obj (changes in different browsers) and injects it into the head
   // in the appropriate order
-  function injectJs ( oldObj ) {
+  function injectJs ( oldObj, fallback ) {
     var script = doc.createElement( 'script' ),
         done;
 
     script.src = oldObj.s;
 
     // Bind to load events
-    script.onreadystatechange = script.onload = function () {
+    script.onreadystatechange = script.onload = function ( e ) {
 
       if ( ! done && isFileReady( script.readyState ) ) {
 
-        // Set done to prevent this function from being called twice.
         done = 1;
-        execWhenReady();
+
+        // Set done to prevent this function from being called twice.
+        if ( 'text' in script  && ! script.text && oldObj.f) {
+          started = 0;
+          load( oldObj.f, oldObj.t );
+        } else {
+          execWhenReady();        
+        }
 
         // Handle memory leak in IE
         script.onload = script.onreadystatechange = null;
@@ -94,8 +100,14 @@ var docElement            = doc.documentElement,
     sTimeout( function () {
       if ( ! done ) {
         done = 1;
-        docElement.removeChild( script );
-        execWhenReady();
+        if ( oldObj.f ) {
+          started = 0;
+          load( oldObj.f, oldObj.t );
+        } else {
+          docElement.removeChild( script );
+          execWhenReady();
+        }
+
       }
     }, yepnope.errorTimeout );
 
@@ -195,25 +207,30 @@ var docElement            = doc.documentElement,
     docElement.insertBefore( link, docFirst );
   }
 
-  function executeStack ( a ) {
+  function executeStack () {
     // shift an element off of the stack
     var i   = execStack.shift(),
-        src = i ? i.s  : undef,
-        t   = i ? i.t : undef;
+        src = i && i.s,
+        t   = i && i.t,
+        e   = i && i.e;
 
     started = 1;
 
     // if a is truthy and the first item in the stack has an src
-    if ( a && src ) {
-      // Pop another off the stack
-      i = execStack.shift();
-      // unset the src
-      src = undef;
-    }
-
     if ( i ) {
+      // If its an error and has a fallback src, attempt fallback
+      if ( e ) {
+        if ( i.f ) {
+          started = 0;
+          load( i.f, i.t );
+        }
+        // Otherwise, continue on.
+        else {
+          executeStack();
+        }
+      }
       // if it's a script, inject it into the head with no type attribute
-      if ( src && t == 'j' ) {
+      else if ( src && t == 'j' ) {
         // Inject after a timeout so FF has time to be a jerk about it and
         // not double load (ignore the cache)
         sTimeout( function () {
@@ -238,26 +255,27 @@ var docElement            = doc.documentElement,
     }
   }
 
-  function preloadFile ( elem, url, type, splicePoint, docElement ) {
-
+  function preloadFile ( elem, url, type, splicePoint, docElement, oops ) {
+  
+  
     // Create appropriate element for browser and type
     var preloadElem = doc.createElement( elem ),
         done        = 0,
         stackObject = {
           t: type,  // type
-          s: url    // src
+          s: url,   // src,
+          f: oops   // fallback
         //r: 0      // ready
         //e: 0      // error
         };
 
-    function onload () {
-
+    function onload ( e ) {
       // If the script/css file is loaded
       if ( ! done && isFileReady( preloadElem.readyState ) ) {
-
+        console.log( preloadElem );
         // Set done to prevent this function from being called twice.
         stackObject.r = done = 1;
-
+        
         // If the type is set, that means that we're offloading execution
         if ( ! type || ( type && ! started ) ) {
           execWhenReady();
@@ -265,7 +283,7 @@ var docElement            = doc.documentElement,
 
         // Handle memory leak in IE
         preloadElem.onload = preloadElem.onreadystatechange = null;
-        type && docElement.removeChild( preloadElem );
+        docElement.removeChild( preloadElem );
       }
     }
 
@@ -293,7 +311,8 @@ var docElement            = doc.documentElement,
       // handle errors on script elements when we can
       preloadElem.onerror = function () {
         stackObject.r = 1;
-        executeStack( 1 );
+        stackObject.e = 1;
+        executeStack();
       };
     }
 
@@ -308,8 +327,9 @@ var docElement            = doc.documentElement,
     // we can't have a real error handler. So in opera, we
     // have a timeout in order to throw an error if something never loads.
     // Better solutions welcomed.
-    if ( ( isOpera && elem == 'script' ) || elem == 'object' ) {
-      sTimeout( function () {
+    if ( isOpera || elem == 'object' ) {
+      sTimeout( function (){
+          console.log('this is a 404 fallback!');
         if ( ! done ) {
           // Remove the node from the dom
           docElement.removeChild( preloadElem );
@@ -323,7 +343,7 @@ var docElement            = doc.documentElement,
     }
   }
 
-  function load ( resource, type ) {
+  function load ( resource, type, oops ) {
 
     var app   = this,
         elem  = ( type == 'c' ? strCssElem : strJsElem );
@@ -334,7 +354,7 @@ var docElement            = doc.documentElement,
       // if the resource passed in here is a string, preload the file
       // use the head when we can (which is the documentElement when the head element doesn't exist)
       // and use the body element for objects. Images seem fine in the head, for some odd reason.
-      preloadFile( elem, resource, type, app.i++, docElement );
+      preloadFile( elem, resource, type, app.i++, docElement, oops );
     } else {
       // Otherwise it's a resource object and we can splice it into the app at the current location
       execStack.splice( app.i++, 0, resource );
@@ -398,7 +418,7 @@ var docElement            = doc.documentElement,
       return res;
     }
 
-    function loadScriptOrStyle ( input, callback, chain, index, testResult ) {
+    function loadScriptOrStyle ( input, callback, chain, index, testResult, oops ) {
       // run through our set of prefixes
       var resource     = satisfyPrefixes( input ),
           autoCallback = resource.autoCallback;
@@ -419,7 +439,7 @@ var docElement            = doc.documentElement,
       }
       else {
 
-        chain.load( resource.url, ( ( resource.forceCSS || ( ! resource.forceJS && /css$/.test( resource.url ) ) ) ) ? 'c' : undef );
+        chain.load( resource.url, ( ( resource.forceCSS || ( ! resource.forceJS && /css$/.test( resource.url ) ) ) ) ? 'c' : undef, oops );
 
         // If we have a callback, we'll start the chain over
         if ( isFunction( callback ) || isFunction( autoCallback ) ) {
@@ -441,6 +461,7 @@ var docElement            = doc.documentElement,
             group      = testResult ? testObject.yep : testObject.nope,
             always     = testObject.load || testObject.both,
             callback   = testObject.callback,
+            oops       = testObject.oops,
             callbackKey;
 
         // Reusable function for dealing with the different input types
@@ -450,7 +471,7 @@ var docElement            = doc.documentElement,
           // If it's a string
           if ( isString( needGroup ) ) {
             // Just load the script of style
-            loadScriptOrStyle( needGroup, callback, chain, 0, testResult );
+            loadScriptOrStyle( needGroup, callback, chain, 0, testResult, oops );
           }
           // See if we have an object. Doesn't matter if it's an array or a key/val hash
           // Note:: order cannot be guaranteed on an key value object with multiple elements
@@ -461,7 +482,7 @@ var docElement            = doc.documentElement,
               // patch if needed. Kangax has a nice shim for it. Or just remove the check
               // and promise not to extend the object prototype.
               if ( needGroup.hasOwnProperty( callbackKey ) ) {
-                loadScriptOrStyle( needGroup[ callbackKey ], callback, chain, callbackKey, testResult );
+                loadScriptOrStyle( needGroup[ callbackKey ], callback, chain, callbackKey, testResult, oops );
               }
             }
           }
