@@ -235,7 +235,7 @@ if ( ! window.console ) {
 
     yepnope([
       {
-        load : 'css!css/sleep-3/' + rgb.join(',') + '.css',
+        load : 'css/sleep-3/' + rgb.join(',') + '.css',
         callback : function() {
           cssIsLoaded(rgb, function(result) {
 
@@ -324,7 +324,7 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
-
+/*
   module("Supported Plugins")
   asyncTest("autoprotocol supported global filter plugin", 1, function() {
     ++u;
@@ -371,5 +371,5 @@ if ( ! window.console ) {
     ]);
     stop(timeout);
   });
-
+*/
 })( window )

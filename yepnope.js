@@ -37,8 +37,6 @@ var docElement            = doc.documentElement,
     isFunction            = function ( fn ) {
       return toString.call( fn ) == '[object Function]';
     },
-    globalFilters         = [],
-    prefixes              = {},
     yepnope;
 
   /* Loader helper functions */
@@ -364,47 +362,20 @@ var docElement            = doc.documentElement,
         // start the chain as a plain instance
         chain = this.yepnope.loader;
 
-    function satisfyPrefixes ( url ) {
-      // make sure we have a url
-      if ( url ) {
-        // split all prefixes out
-        var parts   = url.split( '!' ),
-            gLen    = globalFilters.length,
-            origUrl = parts.pop(),
-            pLen    = parts.length,
-            res     = {
-              url      : origUrl,
-              // keep this one static for callback variable consistency
-              origUrl  : origUrl,
-              prefixes : parts
-            },
-            mFunc,
-            j,
-            z;
-
-        // loop through prefixes
-        // if there are none, this automatically gets skipped
-        for ( j = 0; j < pLen; j++ ) {
-          mFunc = prefixes[ parts[ j ] ];
-          if ( mFunc ) {
-            res = mFunc( res );
-          }
-        }
-
-        // Go through our global filters
-        for ( z = 0; z < gLen; z++ ) {
-          res = globalFilters[ z ]( res );
-        }
-
-        // return the final url
-        return res;
+    function createResourceObject( url ) {
+      if ( yepnope._satisfyPrefixes ) {
+        return yepnope._satisfyPrefixes( url );
       }
-      return false;
+      return {
+        url : url,
+        origUrl : url,
+        prefixes : []
+      };
     }
 
     function loadScriptOrStyle ( input, callback, chain, index, testResult ) {
       // run through our set of prefixes
-      var resource = satisfyPrefixes( input );
+      var resource = createResourceObject( input );
 
       // if no object is returned or the url is empty/false just exit the load
       if ( ! resource || !resource.url || resource.bypass ) {
@@ -537,9 +508,9 @@ var docElement            = doc.documentElement,
   // that can be manipulated and then returned. (like middleware. har.)
   //
   // Examples of this can be seen in the officially supported ie prefix
-  yepnope.addPrefix = function ( prefix, callback ) {
-    prefixes[ prefix ] = callback;
-  };
+  //yepnope.addPrefix = function ( prefix, callback ) {
+    //prefixes[ prefix ] = callback;
+  //};
 
   // A filter is a global function that every resource
   // object that passes through yepnope will see. You can
@@ -549,9 +520,9 @@ var docElement            = doc.documentElement,
   //
   // The best example of a filter is the 'autoprotocol' officially
   // supported filter
-  yepnope.addFilter = function ( filter ) {
-    globalFilters.push( filter );
-  };
+  //yepnope.addFilter = function ( filter ) {
+    //globalFilters.push( filter );
+  //};
 
   // Default error timeout to 10sec - modify to alter
   yepnope.errorTimeout = 10000;
