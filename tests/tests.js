@@ -1,10 +1,11 @@
+/**/
 if ( ! window.console ) {
   window.console = {
     log : function( msg ) {
     }
   };
-
 };
+/**/
 (function( w ) {
 
   var rgbRegex = /rgb\((\d+),\s?(\d+),\s?(\d+)\)/;
@@ -315,7 +316,7 @@ if ( ! window.console ) {
   
   /**/
 
-  asyncTest("404 Fallback", 1, function() {
+  asyncTest("404 Fallback", 2, function() {
     ++u;
     yepnope([
       {
@@ -323,10 +324,25 @@ if ( ! window.console ) {
         oops : 'js/i'+u+'.js',
         callback : function(url, res, key, yepnope ) {
           ok( w['i'+u], "i has loaded" );
+        }
+      }
+    ]);
+
+    yepnope([
+      {
+        load : 'jDoesNotExist',
+        oops : {
+          'jDoesNotExist' : 'js/j'+u+'.js'
+        },
+        callback : function(url, res, key, yepnope ) {
+          ok( w['j'+u], "j has loaded" );
+        },
+        complete : function() {
           start();
         }
       }
     ]);
+    /**/
     stop(timeout);
   });
   

@@ -10,7 +10,7 @@
 
 var docElement            = doc.documentElement,
     sTimeout              = window.setTimeout,
-    docFirst              = docElement.children[ 0 ],
+    docFirst              = docElement.children && docElement.children[0] || doc.getElementsByTagName('head')[0],
     toString              = {}.toString,
     execStack             = [],
     started               = 0,
@@ -107,7 +107,6 @@ var docElement            = doc.documentElement,
           docElement.removeChild( script );
           execWhenReady();
         }
-
       }
     }, yepnope.errorTimeout );
 
@@ -272,7 +271,6 @@ var docElement            = doc.documentElement,
     function onload ( e ) {
       // If the script/css file is loaded
       if ( ! done && isFileReady( preloadElem.readyState ) ) {
-        console.log( preloadElem );
         // Set done to prevent this function from being called twice.
         stackObject.r = done = 1;
         
@@ -329,7 +327,6 @@ var docElement            = doc.documentElement,
     // Better solutions welcomed.
     if ( isOpera || elem == 'object' ) {
       sTimeout( function (){
-          console.log('this is a 404 fallback!');
         if ( ! done ) {
           // Remove the node from the dom
           docElement.removeChild( preloadElem );
@@ -432,6 +429,11 @@ var docElement            = doc.documentElement,
       if ( callback ) {
         callback = isFunction( callback ) ? callback : callback[ input ] || callback[ index ] || callback[ ( input.split( '/' ).pop().split( '?' )[ 0 ] ) ];
       }
+      if ( oops ) {
+        oops = isString( oops ) ? oops : oops[ input ];
+      }
+      oops && console.log( oops );
+
 
       // if someone is overriding all normal functionality
       if ( resource.instead ) {
