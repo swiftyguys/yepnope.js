@@ -361,6 +361,10 @@ var docElement            = doc.documentElement,
     return app;
   }
 
+	function determineObjectVariable( obj, input, index, fn ) {
+		return fn( obj ) ? obj : obj[ input ] || obj[ index ] || obj[ ( input.split( '/' ).pop().split( '?' )[ 0 ] ) ];
+	}
+
   // return the yepnope object with a fresh loader attached
   function getYepnope () {
     var y = yepnope;
@@ -427,12 +431,11 @@ var docElement            = doc.documentElement,
 
       // Determine callback, if any
       if ( callback ) {
-        callback = isFunction( callback ) ? callback : callback[ input ] || callback[ index ] || callback[ ( input.split( '/' ).pop().split( '?' )[ 0 ] ) ];
+	      callback = determineObjectVariable( callback, input, index, isFunction );
       }
       if ( oops ) {
-        oops = isString( oops ) ? oops : oops[ input ];
+	      oops = determineObjectVariable( oops, input, index, isString );      
       }
-      oops && console.log( oops );
 
 
       // if someone is overriding all normal functionality
