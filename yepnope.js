@@ -22,7 +22,7 @@ var docElement            = doc.documentElement,
     // Thanks to @jdalton for showing us this opera detection (by way of @kangax) (and probably @miketaylr too, or whatever...)
     isOpera               = window.opera && toString.call( window.opera ) == '[object Opera]',
     isWebkit              = ( 'webkitAppearance' in docElement.style ),
-    strJsElem             = isOpera || ( isGecko && ! isGecko18 ) ? 'img' : ( isGecko ? 'object' : 'script' ),
+    strJsElem             = isOpera || (( isGecko && ! isGecko18 ) || 'onreadystatechange' in doc.createElement('script')) ? 'img' : ( isGecko ? 'object' : 'script' ),
     strCssElem            = isWebkit ? 'img' : strJsElem,
     isArray               = Array.isArray || function ( obj ) {
       return toString.call( obj ) == '[object Array]';
@@ -73,6 +73,7 @@ var docElement            = doc.documentElement,
         done;
 
     script.src = oldObj.s;
+    script.type = 'text/javascript';
 
     // Bind to load events
     script.onreadystatechange = script.onload = function ( e ) {
@@ -82,7 +83,7 @@ var docElement            = doc.documentElement,
         done = 1;
 
         // Set done to prevent this function from being called twice.
-        if ( 'text' in script  && ! script.text && oldObj.f) {
+        if (( isOpera && 'text' in script  && ! script.text) && oldObj.f ) {
           started = 0;
           load( oldObj.f, oldObj.t );
         } else {
@@ -117,7 +118,7 @@ var docElement            = doc.documentElement,
       script.onload();
     }
     else {
-      docElement.appendChild( script );
+      docFirst.insertBefore( script );
     }
   }
 
@@ -256,10 +257,10 @@ var docElement            = doc.documentElement,
 
   function preloadFile ( elem, url, type, splicePoint, docElement, oops ) {
   
-  
     // Create appropriate element for browser and type
     var preloadElem = doc.createElement( elem ),
         done        = 0,
+        loading     = 0,
         stackObject = {
           t: type,  // type
           s: url,   // src,
@@ -269,6 +270,22 @@ var docElement            = doc.documentElement,
         };
 
     function onload ( e ) {
+    
+      // This is for IE!
+      if ( ! loading && preloadElem.readyState == 'loading' ) {
+        loading = 1;
+      } else {
+        done = 1;
+        stackObject.r = 1;
+        try {
+          preloadElem.fileUpdatedDate
+        } catch ( e ) {
+          console.log('always here?');
+          stackObject.e = 1;
+        }
+        execWhenReady();
+      }
+    
       // If the script/css file is loaded
       if ( ! done && isFileReady( preloadElem.readyState ) ) {
         // Set done to prevent this function from being called twice.
@@ -308,8 +325,7 @@ var docElement            = doc.documentElement,
     else if ( elem == 'script' ) {
       // handle errors on script elements when we can
       preloadElem.onerror = function () {
-        stackObject.r = 1;
-        stackObject.e = 1;
+        stackObject.e = stackObject.r = 1;
         executeStack();
       };
     }

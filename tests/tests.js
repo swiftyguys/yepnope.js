@@ -129,7 +129,7 @@ if ( ! window.console ) {
     }, 6000);
   });
 
-  /**/
+  /** /
 
   module("Asynchronous Script Loading")
   asyncTest("Execution Order", 1, function() {
@@ -151,7 +151,7 @@ if ( ! window.console ) {
     }]);
   });
   
-  /**/
+  /** /
 
   asyncTest("Non-recursive loading of a &rarr; b &rarr; c", 3, function() {
     // Increment the unique value per test, so caching doesn't occur between tests
@@ -183,7 +183,7 @@ if ( ! window.console ) {
     stop(timeout);
   });
   
-  /**/
+  /** /
 
   asyncTest("Recursive loading of d &rarr; e &rarr; f &rarr; g &rarr; h", 5, function() {
     ++u;
@@ -234,7 +234,7 @@ if ( ! window.console ) {
     stop(timeout);
   });
 
-  /**/
+  /** /
 
   asyncTest("CSS Callback Timing", 3, function() {
     var startTime = (+new Date);
@@ -271,7 +271,7 @@ if ( ! window.console ) {
     stop(timeout);
   });
 
-  /**/
+  /** /
 
   module("Caching");
   asyncTest("Don't Load Twice", 1, function(){
@@ -286,7 +286,7 @@ if ( ! window.console ) {
     }, 5500);
   });
   
-  /**/
+  /** /
 
   module("Inner api");
   asyncTest("Key Value Callbacks", 2, function() {
@@ -314,19 +314,23 @@ if ( ! window.console ) {
     stop(timeout);
   });
   
-  /**/
+  /** /
 
-  asyncTest("404 Fallback", 2, function() {
+  asyncTest("404 Fallback", 4, function() {
     ++u;
+      
+    /** /
     yepnope([
       {
         load : 'iDoesNotExist',
         oops : 'js/i'+u+'.js',
         callback : function(url, res, key, yepnope ) {
-          ok( w['i'+u], "i has loaded" );
+          ok( w['i'+u], "oops as a string - i has loaded" );
         }
       }
     ]);
+
+    /** /
 
     yepnope([
       {
@@ -335,18 +339,31 @@ if ( ! window.console ) {
           'jDoesNotExist' : 'js/j'+u+'.js'
         },
         callback : function(url, res, key, yepnope ) {
-          ok( w['j'+u], "j has loaded" );
+          ok( w['j'+u], "oops as an object - j has loaded" );
+        }
+      }
+    ]);
+    /** /
+    yepnope([
+      {
+        load : 'js/k'+u+'.js',
+        oops : 'js/md'+u+'.js',
+        callback : function(url, res, key, yepnope ) {
+          ok( w['k'+u], "k has loaded" );
+          ok( ! w['md'+u], "m has not loaded" );
         },
         complete : function() {
+          ok( true, "Complete called on 404");
           start();
         }
       }
     ]);
-    /**/
+
+    /** /
     stop(timeout);
   });
   
-  /**/
+  /** /
 
   module("Supported Plugins")
   asyncTest("autoprotocol supported global filter plugin", 1, function() {
@@ -365,7 +382,7 @@ if ( ! window.console ) {
     stop(timeout);
   });
   
-  /**/
+  /** /
 
   asyncTest("IE prefix test", 2, function() {
     ++u;

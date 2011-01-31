@@ -78,62 +78,7 @@
       </tbody>
     </table>
     <div id="ua"></div>
-    <script type="text/javascript">
-      var srcs          = {
-            'exist'      : 'https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js',
-            'not-exist'  : 'unicorn'
-          },
-          elems         = ['script', 'object', 'img', 'link'],
-          callbacks     = ['onload', 'onreadystatechange', 'onerror'];
-
-      function each( arr, fn ) {
-        for ( var i = 0, count = arr.length; i < count; i++ )
-          fn( arr[i], i );
-      }
-
-      (function( doc, head ) {
-
-        for ( type in srcs ) {
-
-          (function( type ){
-
-            each( callbacks, function( callback ) {
-
-              each( elems, function( elem ) {
-
-                var script  = doc.createElement( elem )
-
-                if ( elem == 'link') {
-                  script.rel  = "stylesheet";
-                  script.href = srcs[type];
-//                  script.media = "print";
-                } else {
-                  script.src = script.data = srcs[type];
-                  script.type && (script.type = 'bogus');                
-                }
-
-                script[callback] = function() {
-									//console.log([elem, callback, type].join('-'));
-                  if (( callback != 'onreadystatechange' ) || (callback == 'onreadystatechange' && ( script.readyState == "loaded" || script.readyState == "complete"))) {
-                    doc.getElementById([elem, callback, type].join('-')).className = 'pass';
-                    head.removeChild( script );
-                  }
-
-                };
-                head.appendChild(script);
-
-              });
-
-            });
-
-
-          })( type );
-
-        };
-
-        doc.getElementById('ua').appendChild( document.createTextNode( navigator.userAgent ));
-
-      })( document, document.getElementsByTagName('head')[0] );
-    </script>
+		<script type="text/javascript" src="https://getfirebug.com/firebug-lite.js"></script>
+    <script type="text/javascript" src="preload.js"></script>
   </body>
 </html>
