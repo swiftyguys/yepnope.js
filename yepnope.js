@@ -69,6 +69,7 @@ var docElement            = doc.documentElement,
   // in the appropriate order
   function injectJs ( oldObj ) {
     var script = doc.createElement( 'script' ),
+    		t,
         done;
 
     script.src = oldObj.s;
@@ -81,6 +82,7 @@ var docElement            = doc.documentElement,
         // Set done to prevent this function from being called twice.
         done = 1;
         execWhenReady();
+        clearTimeout(t);
 
         // Handle memory leak in IE
         script.onload = script.onreadystatechange = null;
@@ -90,7 +92,7 @@ var docElement            = doc.documentElement,
     };
 
     // 404 Fallback
-    sTimeout( function () {
+    t = sTimeout( function () {
       if ( ! done ) {
         done = 1;
         docElement.removeChild( script );
@@ -116,6 +118,7 @@ var docElement            = doc.documentElement,
 
     // Create stylesheet link
     var link = doc.createElement( 'link' ),
+    		t,
         done;
 
     // Add attributes
@@ -172,6 +175,7 @@ var docElement            = doc.documentElement,
         if ( ! done ) {
           // Set our flag to complete
           done = 1;
+          clearTimeout(t);
           // Check to see if we can call the callback
           sTimeout( function () {
             execWhenReady();
@@ -184,7 +188,7 @@ var docElement            = doc.documentElement,
     }
 
     // 404 Fallback
-    sTimeout( function () {
+    t = sTimeout( function () {
       if ( ! done ) {
         done = 1;
         docElement.removeChild( link );
@@ -218,9 +222,7 @@ var docElement            = doc.documentElement,
       if ( src && t == 'j' ) {
         // Inject after a timeout so FF has time to be a jerk about it and
         // not double load (ignore the cache)
-        sTimeout( function () {
-          injectJs( i );
-        }, 0 );
+        injectJs( i );
       }
       // If it's a css file, fun the css injection function
       else if ( src && t == 'c' ) {
@@ -243,6 +245,7 @@ var docElement            = doc.documentElement,
     // Create appropriate element for browser and type
     var preloadElem = doc.createElement( elem ),
         done        = 0,
+        t,
         stackObject = {
           t: type,     // type
           s: url,      // src
@@ -254,7 +257,7 @@ var docElement            = doc.documentElement,
 
       // If the script/css file is loaded
       if ( ! done && isFileReady( preloadElem.readyState ) ) {
-
+				t && clearTimeout( t );
         // Set done to prevent this function from being called twice.
         stackObject.r = done = 1;
 
@@ -306,7 +309,7 @@ var docElement            = doc.documentElement,
     // have a timeout in order to throw an error if something never loads.
     // Better solutions welcomed.
     if ( ( isOpera && elem == 'script' ) || elem == 'object' ) {
-      sTimeout( function () {
+      t = sTimeout( function () {
         if ( ! done ) {
           // Remove the node from the dom
           docElement.removeChild( preloadElem );
