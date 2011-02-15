@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+  <head>
+    <style type="text/css">
+      body {
+        font-family: "Helvetica Neue", sans-serif;
+        float: left;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #aaa;
+        padding: 4px 8px;
+      }
+      td {
+        font-family: Monaco, mono;
+      }
+      button {
+        display: none;
+        margin: 0 auto;
+        width: 75px;
+      }
+      #controls {
+        text-align: center;
+        padding: 5px;
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-1.5.min.js"></script>
+    <script src="http://git.ralphholzmann.com/yepnope.js/yepnope.js"></script>
+    <script src="http://git.ralphholzmann.com/LABjs/LAB.src.js"></script>
+
+    <title>Yepnope Benchmark</title>
+  </head>
+  <body>
+    <h1>Script Loader Benchmark</h1>
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">Script Loader</th>
+          <th colspan="5">Time in MS</th>
+        </tr>
+        <tr>
+          <th>5</th>
+          <th>10</th>
+          <th>20</th>
+          <th>30</th>
+          <th>50</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>LABjs 1.20</td>
+          <td id="labjs-5"></td>
+          <td id="labjs-10"></td>
+          <td id="labjs-20"></td>
+          <td id="labjs-30"></td>
+          <td id="labjs-50"></td>
+        </tr>
+        <tr>
+          <td>LABjs 1.20 no XHR</td>
+          <td id="labjsnoxhr-5"></td>
+          <td id="labjsnoxhr-10"></td>
+          <td id="labjsnoxhr-20"></td>
+          <td id="labjsnoxhr-30"></td>
+          <td id="labjsnoxhr-50"></td>
+        </tr>
+        <tr>
+          <td>yepnope.js 1.0RC4</td>
+          <td id="yepnopejs-5"></td>
+          <td id="yepnopejs-10"></td>
+          <td id="yepnopejs-20"></td>
+          <td id="yepnopejs-30"></td>
+          <td id="yepnopejs-50"></td>
+        </tr>
+        <tr>
+          <td>Normal &lt;script&gt;s</td>
+          <td id="normal-5"></td>
+          <td id="normal-10"></td>
+          <td id="normal-20"></td>
+          <td id="normal-30"></td>
+          <td id="normal-50"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="controls">
+      <button>Start!</button>    
+    </div>
+    <div id="status"></div>
+    <script type="text/javascript">
+      // Window ready, so peeps dont start the test while things are still loading
+      $(window).ready(function(){
+        if ( ! window.console ) {
+          window.console = { log: function(){ }};
+        }
+        
+        var i = (+new Date),
+            cooldown = 1,
+            amounts = [5, 10, 20, 30, 50],
+            nScripts = 30,
+            results = {};
+
+        (function( button, status, labjs, labjsnoxhr, yepnope ) {
+
+          
+          function testLabjs( amount ) {
+            var v = 0,
+                chain = $LAB,
+                now;
+
+            status.text('Benchmarking LABjs');
+
+            // Start
+            now = (+new Date);
+            for ( ; v < amount; v++ ) {
+              chain = chain.script('../js/no-cache/a' + i++ + '.js');
+            }
+            
+            chain.wait(function(){
+              console.log('LABjs complete.')
+              $('#labjs-' + amount).text( ((+new Date) - now) + 'ms');
+              status.text('Cooling down for ' + cooldown + ' second' + ( ~-cooldown ? 's' : '' ) + '...');
+              setTimeout(function(){
+                testLabjsNoXHR( amount );
+              }, cooldown * 1000);
+            });
+          };
+
+          function testLabjsNoXHR( amount ) {
+            var v = 0,
+                chain = $LAB,
+                now;
+
+            chain.setOptions({
+              UseLocalXHR : false
+            });
+
+            status.text('Benchmarking LABjs without XHR');
+
+            now = (+new Date)
+            for ( ; v < amount; v++ ) {
+              chain = chain.script('../js/no-cache/b' + i++ + '.js');
+            }
+            
+            chain.wait(function(){
+              console.log('LABjs complete.')
+              $('#labjsnoxhr-' + amount).text( ((+new Date) - now) + 'ms');
+              status.text('Cooling down for ' + cooldown + ' second' + ( ~-cooldown ? 's' : '' ) + '...');
+              setTimeout(function(){
+                testYepnope( amount );
+              }, cooldown * 1000);
+            });
+          };
+
+
+          function testYepnope( amount ) {
+            var v = 0,
+                scripts = [],
+                now;
+
+            for (; v < amount; v ++ ) {
+              scripts.push('../js/no-cache/c' + i++ + '.js');
+            }
+
+            status.text('Benchmarking yepnope.js');
+            // Start
+            now = (+new Date);
+            window.yepnope({
+              load: scripts,
+              complete: function() {
+                console.log('yepnope complete.');
+                $('#yepnopejs-' + amount).text(((+new Date) - now) + 'ms');
+                status.text('Cooling down for ' + cooldown + ' second' + ( ~-cooldown ? 's' : '' ) + '...');
+                setTimeout(function(){
+                  testNormal( amount );
+                }, cooldown * 1000);
+              }
+            });
+          };
+          
+          function testNormal( amount ) {
+          
+            var frame = $('<iframe />').bind('load', function(){
+              $('#normal-' + amount).text(frame[0].contentDocument.location.hash.split('#').pop() + 'ms');
+              frame.remove();
+              status.text('Cooling down for ' + cooldown + ' second' + ( ~-cooldown ? 's' : '' ) + '...');
+                setTimeout(function(){
+                  next();
+                }, cooldown * 1000);
+            });
+            
+            frame.css('visibility', 'hidden').attr('src', 'scripts.php?n=' + amount);
+            $(document.body).append( frame );
+          }
+
+          function next() {
+          
+            var amount = amounts.shift();
+            if ( amount ) {
+              testLabjs( amount );
+            } else {
+              status.text('Complete');
+            }
+          }
+
+          button.show().one('click', function(){
+            $(this).css({
+              visibility : 'hidden'
+            });
+            next();
+          });
+          status.text('Ready!');
+
+        })( $('button'), $('#status'), $('#labjs'), $('#labjsnoxhr'), $('#yepnopejs') );
+
+      });
+    </script>
+  </body>
+</html>
