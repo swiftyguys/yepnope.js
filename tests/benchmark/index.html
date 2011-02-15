@@ -1,0 +1,295 @@
+<!doctype html>
+<html>
+  <head>
+    <style type="text/css">
+      body {
+        font-family: "Helvetica Neue", sans-serif;
+        float: left;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #aaa;
+        padding: 4px 8px;
+      }
+      td {
+        font-family: Monaco, mono;
+      }
+      button {
+        display: none;
+        margin: 0 auto;
+        width: 75px;
+      }
+      #controls {
+        text-align: center;
+        padding: 5px;
+      }
+    </style>
+    <script src="http://code.jquery.com/jquery-1.5.min.js"></script>
+    <script src="../../yepnope.js"></script>
+    <script src="http://git.ralphholzmann.com/LABjs/LAB.src.js"></script>
+
+    <title>Yepnope Benchmark</title>
+  </head>
+  <body>
+    <h1>Script Loader Benchmark</h1>
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">Script Loader</th>
+          <th colspan="5">Time in MS</th>
+        </tr>
+        <tr>
+          <th>5</th>
+          <th>10</th>
+          <th>20</th>
+          <th>30</th>
+          <th>50</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>LABjs 1.20</td>
+          <td id="labjs-5"></td>
+          <td id="labjs-10"></td>
+          <td id="labjs-20"></td>
+          <td id="labjs-30"></td>
+          <td id="labjs-50"></td>
+        </tr>
+        <tr>
+          <td>LABjs 1.20 no XHR</td>
+          <td id="labjsnoxhr-5"></td>
+          <td id="labjsnoxhr-10"></td>
+          <td id="labjsnoxhr-20"></td>
+          <td id="labjsnoxhr-30"></td>
+          <td id="labjsnoxhr-50"></td>
+        </tr>
+        <tr>
+          <td>yepnope.js 1.0RC4</td>
+          <td id="yepnopejs-5"></td>
+          <td id="yepnopejs-10"></td>
+          <td id="yepnopejs-20"></td>
+          <td id="yepnopejs-30"></td>
+          <td id="yepnopejs-50"></td>
+        </tr>
+        <tr>
+          <td>Normal &lt;script&gt;s</td>
+          <td id="normal-5"></td>
+          <td id="normal-10"></td>
+          <td id="normal-20"></td>
+          <td id="normal-30"></td>
+          <td id="normal-50"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="controls">
+      <button>Start!</button>    
+    </div>
+    <div id="status"></div>
+    <script type="text/javascript">
+      // Window ready, so peeps dont start the test
+      // while things are still loading
+      $(window).ready(function(){
+
+        // Console fix for IE
+        if ( ! window.console ) {
+          window.console = { log: function(){ }};
+        }
+        
+        var i = (+new Date),
+            cooldown = 200,
+            amounts = [5, 10, 20, 30, 50],
+            noop = function(){},
+            results = {};
+
+        function normalize( arr ) {
+          var data = arr.sort(),
+              avg = 0,
+              i = 0;
+          data.shift();
+          data.pop();
+          data.shift();
+          data.pop();
+          
+          for ( ; i < data.length; i++ ) {
+            avg += data[i];
+          }
+          return Math.ceil( avg / data.length ); 
+        }
+
+        (function( button, status, labjs, labjsnoxhr, yepnope ) {
+
+          
+          // Tests for regular LABjs
+          function testLabjs( amount ) {
+            var v = 0,
+                chain = $LAB,
+                result,
+                now;
+
+            status.text('Benchmarking LABjs');
+
+            // Start
+            now = (+new Date);
+            for ( ; v < amount; v++ ) {
+              chain = chain.script('../js/no-cache/l' + i++ + '.js').wait(noop);
+            }
+            
+            chain.wait(function(){
+              result = ((+new Date) - now);
+              
+              if ( ! results['labjs' + amount] ) {
+                results['labjs' + amount] = [];
+              }
+              results['labjs' + amount].push(result);
+              
+              if ( results['labjs' + amount].length < 10 ) {
+                status.text('Cooling down');
+                setTimeout(function(){
+                  testLabjs( amount );
+                }, cooldown);              
+              } else {
+                $('#labjs-' + amount).text( normalize( results['labjs' + amount] ) + 'ms');
+                setTimeout(function(){
+                  testLabjsNoXHR( amount )
+                }, cooldown);                   
+              }
+              
+            });
+          };
+
+          // Tests for LABjs without local XHR
+          function testLabjsNoXHR( amount ) {
+            var v = 0,
+                chain = $LAB,
+                result,
+                now;
+
+            chain.setOptions({
+              UseLocalXHR : false
+            });
+
+            status.text('Benchmarking LABjs without XHR');
+
+            now = (+new Date)
+            for ( ; v < amount; v++ ) {
+              chain = chain.script('../js/no-cache/lnxhr' + i++ + '.js').wait(noop);
+            }
+            
+            chain.wait(function(){
+              result = ((+new Date) - now);
+
+              if ( ! results['labjsnoxhr' + amount] ) {
+                results['labjsnoxhr' + amount] = [];
+              }
+              results['labjsnoxhr' + amount].push(result);
+              
+              if ( results['labjsnoxhr' + amount].length < 10 ) {
+                status.text('Cooling down');
+                setTimeout(function(){
+                  testLabjsNoXHR( amount );
+                }, cooldown);              
+              } else {
+                $('#labjsnoxhr-' + amount).text( normalize( results['labjsnoxhr' + amount] ) + 'ms');
+                setTimeout(function(){
+                  testYepnope( amount )
+                }, cooldown);                   
+              }
+            });
+          };
+
+
+          // Tests for yepnope
+          function testYepnope( amount ) {
+            var v = 0,
+                scripts = [],
+                result,
+                now;
+
+            for (; v < amount; v ++ ) {
+              scripts.push('../js/no-cache/y' + i++ + '.js');
+            }
+
+            status.text('Benchmarking yepnope.js');
+            // Start
+            now = (+new Date);
+            window.yepnope({
+              load: scripts,
+              callback: noop,
+              complete: function() {
+                result = ((+new Date) - now);
+
+                if ( ! results['yepnopejs' + amount] ) {
+                  results['yepnopejs' + amount] = [];
+                }
+                results['yepnopejs' + amount].push(result);
+                
+                if ( results['yepnopejs' + amount].length < 10 ) {
+                  status.text('Cooling down');
+                  setTimeout(function(){
+                    testYepnope( amount );
+                  }, cooldown);              
+                } else {
+                  $('#yepnopejs-' + amount).text( normalize( results['yepnopejs' + amount] ) + 'ms');
+                  setTimeout(function(){
+                    testNormal( amount )
+                  }, cooldown);                   
+                }
+              }
+            });
+          };
+          
+          // Tests for normal script loading
+          function testNormal( amount ) {
+          
+            var frame = $('<iframe />').bind('load', function(){
+              result = parseInt( frame[0].contentDocument.location.hash.split('#').pop(), 10);
+              frame.remove();
+              if ( ! results['normal' + amount] ) {
+                results['normal' + amount] = [];
+              }
+              results['normal' + amount].push(result);
+              
+              if ( results['normal' + amount].length < 10 ) {
+                status.text('Cooling down');
+                setTimeout(function(){
+                  testNormal( amount );
+                }, cooldown);              
+              } else {
+                $('#normal-' + amount).text( normalize( results['normal' + amount] ) + 'ms');
+                setTimeout(function(){
+                  next()
+                }, cooldown);                   
+              }
+            }),
+                result;
+            
+            frame.css('visibility', 'hidden').attr('src', 'scripts.php?n=' + amount);
+            $(document.body).append( frame );
+          }
+
+          function next() {
+          
+            var amount = amounts.shift();
+            if ( amount ) {
+              testLabjs( amount );
+            } else {
+              status.text('Complete');
+            }
+          }
+
+          button.show().one('click', function(){
+            $(this).css({
+              visibility : 'hidden'
+            });
+            next();
+          });
+          status.text('Ready!');
+
+        })( $('button'), $('#status'), $('#labjs'), $('#labjsnoxhr'), $('#yepnopejs') );
+
+      });
+    </script>
+  </body>
+</html>
