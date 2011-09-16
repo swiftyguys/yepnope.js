@@ -1,6 +1,6 @@
-/*yepnope1.0|WTFPL*/
+/*yepnope1.0.2|WTFPL*/
 // yepnope.js
-// Version - 1.0
+// Version - 1.0.2
 //
 // by
 // Alex Sexton - @SlexAxton - AlexSexton[at]gmail.com
@@ -39,8 +39,7 @@ var docElement            = doc.documentElement,
       return toString.call( obj ) == '[object Array]';
     },
     isObject              = function ( obj ) {
-      // Lame object detection, but don't pass it stupid stuff?
-      return typeof obj == 'object';
+      return Object(obj) === obj;
     },
     isString              = function ( s ) {
       return typeof s == 'string';
@@ -52,9 +51,6 @@ var docElement            = doc.documentElement,
     prefixes              = {},
     handler,
     yepnope;
-
-
-
 
   /* Loader helper functions */
   function isFileReady ( readyState ) {
@@ -133,7 +129,7 @@ var docElement            = doc.documentElement,
     if ( ! oldObj.e && ( isWebkit || isGecko ) ) {
       // A self executing function with a sTimeout poll to call itself
       // again until the css file is added successfully
-      ( function poll ( link ) {
+      var poll = function ( link ) {
         sTimeout( function () {
           // Don't run again if we're already done
           if ( ! done ) {
@@ -168,7 +164,8 @@ var docElement            = doc.documentElement,
             }
           }
         }, 0 );
-      } )( link );
+      };
+      poll( link );
 
     }
     // Onload handler for IE and Opera
